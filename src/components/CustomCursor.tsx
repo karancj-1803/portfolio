@@ -1,80 +1,75 @@
-import { useEffect, useRef } from 'react'
-import { useDeviceCapability } from '@/hooks/useDeviceCapability'
+import { useEffect, useRef } from 'react';
+import { useIsTouch, useReducedMotion } from '@/hooks/useMotion';
 
-/**
- * Minimal two-part cursor (dot + ring). Reads/writes DOM directly on every
- * pointer event — no React state — so it never triggers a re-render.
- */
 export default function CustomCursor() {
-  const dotRef = useRef<HTMLDivElement>(null)
-  const ringRef = useRef<HTMLDivElement>(null)
-  const { isTouch } = useDeviceCapability()
+  const dotRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLDivElement>(null);
+  const isTouch = useIsTouch();
+  const reduced = useReducedMotion();
 
   useEffect(() => {
-    if (isTouch) return
-    const dot = dotRef.current
-    const ring = ringRef.current
-    if (!dot || !ring) return
+    if (isTouch) return;
+    const dot = dotRef.current!;
+    const ring = ringRef.current!;
+    const label = labelRef.current!;
+    let mx = window.innerWidth / 2;
+    let my = window.innerHeight / 2;
+    let rx = mx;
+    let ry = my;
+    let raf = 0;
 
-    let ringX = window.innerWidth / 2
-    let ringY = window.innerHeight / 2
-    let targetX = ringX
-    let targetY = ringY
-
-    const onMove = (e: PointerEvent) => {
-      targetX = e.clientX
-      targetY = e.clientY
-      dot.style.transform = `translate(${targetX}px, ${targetY}px) translate(-50%, -50%)`
-    }
-
-    const setLabel = (text: string) => {
-      ring.textContent = text
-    }
-
-    const onOver = (e: PointerEvent) => {
-      const target = e.target as HTMLElement
-      const magnetic = target.closest<HTMLElement>('[data-cursor]')
-      if (magnetic) {
-        const label = magnetic.dataset.cursor || ''
-        ring.style.width = label ? '64px' : '48px'
-        ring.style.height = label ? '64px' : '48px'
-        ring.style.borderColor = 'rgba(103,232,249,0.85)'
-        ring.style.background = 'rgba(56,189,248,0.08)'
-        setLabel(label)
+    const onMove = (e: MouseEvent) => {
+      mx = e.clientX;
+      my = e.clientY;
+      dot.style.transform = `translate3d(${mx}px, ${my}px, 0) translate(-50%, -50%)`;
+      const target = (e.target as HTMLElement)?.closest('[data-cursor]') as HTMLElement | null;
+      if (target) {
+        const text = target.dataset.cursor || '';
+        label.textContent = text;
+        label.style.opacity = text ? '1' : '0';
+        ring.classList.add('cursor-active');
       } else {
-        ring.style.width = '34px'
-        ring.style.height = '34px'
-        ring.style.borderColor = 'rgba(103,232,249,0.5)'
-        ring.style.background = 'transparent'
-        setLabel('')
+        label.style.opacity = '0';
+        ring.classList.remove('cursor-active');
       }
-    }
+    };
 
-    let raf = 0
     const loop = () => {
-      ringX += (targetX - ringX) * 0.18
-      ringY += (targetY - ringY) * 0.18
-      ring.style.transform = `translate(${ringX}px, ${ringY}px) translate(-50%, -50%)`
-      raf = requestAnimationFrame(loop)
-    }
+      rx += (mx - rx) * 0.18;
+      ry += (my - ry) * 0.18;
+      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0) translate(-50%, -50%)`;
+      label.style.transform = `translate3d(${rx}px, ${ry}px, 0) translate(20px, -50%)`;
+      raf = requestAnimationFrame(loop);
+    };
 
-    window.addEventListener('pointermove', onMove, { passive: true })
-    window.addEventListener('pointerover', onOver, { passive: true })
-    raf = requestAnimationFrame(loop)
-
+    window.addEventListener('mousemove', onMove);
+    raf = requestAnimationFrame(loop);
     return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerover', onOver)
-      cancelAnimationFrame(raf)
-    }
-  }, [isTouch])
+      window.removeEventListener('mousemove', onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, [isTouch, reduced]);
 
-  if (isTouch) return null
+  if (isTouch) return null;
 
   return (
-    <>
-      <div ref={dotRef} className="cursor-dot" />
-      <div ref={ringRef} className="cursor-ring" />
-    </>
-  )
+    <div className="fixed inset-0 pointer-events-none z-[9999] hidden md:block">
+      <div
+        ref={ringRef}
+        className="cursor-ring fixed top-0 left-0 w-8 h-8 rounded-full border border-amber/40 transition-[width,height,opacity,border-color] duration-300"
+        style={{ willChange: 'transform' }}
+      />
+      <div
+        ref={dotRef}
+        className="fixed top-0 left-0 w-1.5 h-1.5 rounded-full bg-amber-glow"
+        style={{ willChange: 'transform' }}
+      />
+      <div
+        ref={labelRef}
+        className="fixed top-0 left-0 font-mono text-[10px] tracking-[0.2em] uppercase text-amber-glow opacity-0 transition-opacity duration-200"
+        style={{ willChange: 'transform' }}
+      />
+    </div>
+  );
 }

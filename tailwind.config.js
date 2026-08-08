@@ -4,49 +4,44 @@ export default {
   theme: {
     extend: {
       colors: {
-        void: {
-          950: '#020817',
-          900: '#030B18',
-          800: '#061426',
-          700: '#0A1D33',
-          600: '#0F2A47',
+        graphite: {
+          950: '#090909',
+          900: '#0C0B0A',
+          850: '#11100E',
+          800: '#171512',
+          700: '#1F1B17',
+          600: '#2A2520',
+          500: '#3A332C',
         },
-        signal: {
-          400: '#67E8F9',
-          500: '#38BDF8',
-          600: '#2563EB',
+        ivory: {
+          50: '#F7F4ED',
+          100: '#F2EFE8',
+          200: '#E8E3D8',
+          300: '#D6D0C2',
         },
-        frost: '#DDF7FF',
-        mist: '#7C93AD',
+        ash: {
+          400: '#B8B3A8',
+          500: '#9B978E',
+          600: '#7A766C',
+          700: '#5C5950',
+        },
+        amber: {
+          glow: '#FBBF24',
+          DEFAULT: '#F59E0B',
+          deep: '#EA580C',
+          ember: '#B45309',
+        },
       },
       fontFamily: {
-        display: ['"Sora"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
-        body: ['"Manrope"', 'sans-serif'],
+        display: ['"Clash Display"', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
-      backgroundImage: {
-        'grid-fine':
-          'linear-gradient(rgba(103,232,249,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(103,232,249,0.06) 1px, transparent 1px)',
-      },
-      boxShadow: {
-        glow: '0 0 24px rgba(56,189,248,0.35)',
-        'glow-sm': '0 0 12px rgba(56,189,248,0.25)',
-      },
-      keyframes: {
-        pulseDot: {
-          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
-          '50%': { transform: 'scale(1.6)', opacity: '0.4' },
-        },
-        floatY: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-8px)' },
-        },
-      },
-      animation: {
-        pulseDot: 'pulseDot 1.8s ease-in-out infinite',
-        floatY: 'floatY 6s ease-in-out infinite',
+      letterSpacing: {
+        tightest: '-0.04em',
+        tighter: '-0.03em',
       },
     },
   },
   plugins: [],
-}
+};
