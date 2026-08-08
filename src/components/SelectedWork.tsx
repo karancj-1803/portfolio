@@ -1,31 +1,179 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PROJECTS, type Project } from '@/data/portfolio';
 import { useReducedMotion, useIsTouch } from '@/hooks/useMotion';
 import { ArrowUpRight, X } from 'lucide-react';
 
-const PROJECT_IMAGES: Record<string, string[]> = {
+type Media = { type: 'image' | 'video'; src: string };
+
+// Real project media, one folder per project id under public/assets/projects/.
+// The whole list cycles endlessly through the 3 depth slots — see useMediaCycle below.
+const PROJECT_MEDIA: Record<string, Media[]> = {
   'retail-analytics': [
-    'https://images.pexels.com/photos/27141316/pexels-photo-27141316.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    'https://images.pexels.com/photos/12969403/pexels-photo-12969403.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    'https://images.pexels.com/photos/577195/pexels-photo-577195.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    { type: 'image', src: '/assets/projects/retail-analytics/1.png' },
+    { type: 'image', src: '/assets/projects/retail-analytics/2.png' },
+    { type: 'image', src: '/assets/projects/retail-analytics/3.png' },
   ],
-  'smart-pm-ai': [
-    'https://images.pexels.com/photos/38888656/pexels-photo-38888656.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    'https://images.pexels.com/photos/27141314/pexels-photo-27141314.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    'https://images.pexels.com/photos/27141316/pexels-photo-27141316.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+  'pmo-ai': [
+    { type: 'image', src: '/assets/projects/pmo-ai/1.png' },
+    { type: 'image', src: '/assets/projects/pmo-ai/2.png' },
+    { type: 'image', src: '/assets/projects/pmo-ai/3.png' },
+    { type: 'image', src: '/assets/projects/pmo-ai/4.png' },
+    { type: 'image', src: '/assets/projects/pmo-ai/5.png' },
   ],
   'intellidocs-ai': [
-    'https://images.pexels.com/photos/30530414/pexels-photo-30530414.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    'https://images.pexels.com/photos/30479283/pexels-photo-30479283.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    'https://images.pexels.com/photos/30530406/pexels-photo-30530406.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    { type: 'video', src: '/assets/projects/intellidocs-ai/1.mp4' },
+    { type: 'video', src: '/assets/projects/intellidocs-ai/2.mp4' },
+    { type: 'image', src: '/assets/projects/intellidocs-ai/3.png' },
+    { type: 'image', src: '/assets/projects/intellidocs-ai/4.png' },
+    { type: 'image', src: '/assets/projects/intellidocs-ai/5.png' },
+    { type: 'image', src: '/assets/projects/intellidocs-ai/6.png' },
   ],
 };
 
-function ProjectVisual({ projectId, depth, index }: { projectId: string; depth: number; index: number }) {
+const IMAGE_DWELL_MS = 4000;
+
+/**
+ * Drives an endless front→back rotation through a project's media list.
+ * Advances when the front (depth-0) slot finishes: on `ended` for a video,
+ * after IMAGE_DWELL_MS for an image. Returns the index to show at each depth.
+ */
+function useMediaCycle(media: Media[], reduced: boolean) {
+  const [start, setStart] = useState(0);
+  const count = media.length;
+  const advance = useCallback(() => setStart((s) => (count ? (s + 1) % count : 0)), [count]);
+
+  useEffect(() => {
+    if (reduced || count <= 1) return;
+    const front = media[start % count];
+    if (!front || front.type === 'video') return; // videos advance via onEnded
+    const t = setTimeout(advance, IMAGE_DWELL_MS);
+    return () => clearTimeout(t);
+  }, [start, media, count, reduced, advance]);
+
+  const at = (depth: number) => (count ? media[(start + depth) % count] : undefined);
+  return { at, advance };
+}
+
+const SLIDE_MS = 650;
+
+/**
+ * Two alternating layers ("slots") so a media change can slide: the incoming
+ * item mounts into the currently-hidden slot staged off-screen to the right,
+ * then next frame both slots animate at once — incoming slides in to center
+ * while the outgoing one (still visible underneath) slides out to the left.
+ */
+function useSlide(item: Media | undefined) {
+  const [slots, setSlots] = useState<[Media | undefined, Media | undefined]>([item, undefined]);
+  const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
+  const [offsets, setOffsets] = useState<[number, number]>([0, 100]);
+  // Per-slot: whether the transform should transition or snap instantly.
+  // The incoming slot must snap to its off-screen staging position with no
+  // transition, or the browser would visibly animate it from wherever it
+  // last sat (e.g. -100, from being the previous outgoing slot) to +100.
+  const [animate, setAnimate] = useState<[boolean, boolean]>([true, false]);
+  const lastSrc = useRef(item?.src);
+
+  useEffect(() => {
+    if (item?.src === lastSrc.current) return;
+    lastSrc.current = item?.src;
+    const prev = activeSlot;
+    const next = prev === 0 ? 1 : 0;
+
+    // Step 1: load the incoming item and snap it off-screen right, untransitioned.
+    setSlots((s) => {
+      const copy: [Media | undefined, Media | undefined] = [...s];
+      copy[next] = item;
+      return copy;
+    });
+    setOffsets((o) => {
+      const copy: [number, number] = [...o];
+      copy[next] = 100;
+      return copy;
+    });
+    setAnimate((a) => {
+      const copy: [boolean, boolean] = [...a];
+      copy[next] = false;
+      return copy;
+    });
+
+    // Step 2: after the snapped frame has actually painted (double rAF —
+    // one isn't reliably enough across browsers), re-enable transitions and
+    // set both slots' real resting positions so they animate together.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        setActiveSlot(next);
+        setAnimate([true, true]);
+        setOffsets((o) => {
+          const copy: [number, number] = [...o];
+          copy[next] = 0; // slide incoming to center
+          copy[prev] = -100; // slide outgoing out to the left
+          return copy;
+        });
+      });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [item, activeSlot]);
+
+  return { slots, activeSlot, offsets, animate };
+}
+
+function MediaLayer({ item, index, onEnded }: { item: Media; index: number; onEnded?: () => void }) {
+  if (item.type === 'video') {
+    return (
+      <video
+        key={item.src}
+        src={item.src}
+        autoPlay
+        muted
+        playsInline
+        onEnded={onEnded}
+        onError={onEnded}
+        className="w-full h-full object-cover"
+      />
+    );
+  }
+  return (
+    <>
+      {/* Blurred cover backdrop fills the letterboxing behind the contained image.
+          Darkened via filter (not just opacity) so a bright/white-background
+          asset — a logo, a light-mode screenshot — doesn't blow out into a
+          glaring white smear; it stays a moody, theme-consistent glow. */}
+      <img
+        aria-hidden
+        key={item.src + '-bg'}
+        src={item.src}
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover scale-110"
+        style={{ filter: 'blur(50px) saturate(1.4) brightness(0.45)' }}
+      />
+      <img
+        key={item.src}
+        src={item.src}
+        alt={`Project visual ${index + 1}`}
+        loading="lazy"
+        onError={onEnded}
+        className="relative block w-full h-full object-contain"
+      />
+    </>
+  );
+}
+
+function ProjectVisual({
+  item,
+  depth,
+  index,
+  onEnded,
+}: {
+  item: Media | undefined;
+  depth: number;
+  index: number;
+  onEnded?: () => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   const isTouch = useIsTouch();
-  const images = PROJECT_IMAGES[projectId] || [];
+  const { slots, activeSlot, offsets, animate } = useSlide(item);
 
   useEffect(() => {
     if (reduced || isTouch) return;
@@ -47,7 +195,7 @@ function ProjectVisual({ projectId, depth, index }: { projectId: string; depth: 
     return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
   }, [depth, reduced, isTouch]);
 
-  if (!images[index]) return null;
+  if (!slots[0] && !slots[1]) return null;
 
   return (
     <div
@@ -69,12 +217,20 @@ function ProjectVisual({ projectId, depth, index }: { projectId: string; depth: 
           : '0 30px 60px -20px rgba(0,0,0,0.6)',
       }}
     >
-      <img
-        src={images[index]}
-        alt={`Project visual ${index + 1}`}
-        loading="lazy"
-        className="w-full h-full object-cover"
-      />
+      {slots.map((slotItem, i) =>
+        slotItem ? (
+          <div
+            key={i}
+            className="absolute inset-0"
+            style={{
+              transform: `translateX(${offsets[i]}%)`,
+              transition: animate[i] ? `transform ${SLIDE_MS}ms cubic-bezier(0.65, 0, 0.35, 1)` : 'none',
+            }}
+          >
+            <MediaLayer item={slotItem} index={index} onEnded={i === activeSlot ? onEnded : undefined} />
+          </div>
+        ) : null
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-graphite-950/60 via-transparent to-transparent" />
     </div>
   );
@@ -107,8 +263,11 @@ function ProjectShowcase({ project, onOpenCaseStudy }: { project: Project; onOpe
     return () => { el.removeEventListener('mousemove', onMove); el.removeEventListener('mouseleave', onLeave); cancelAnimationFrame(raf); };
   }, [reduced, isTouch]);
 
+  const media = PROJECT_MEDIA[project.id] || [];
+  const { at, advance } = useMediaCycle(media, reduced);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-end">
       {/* Visual */}
       <div className="relative perspective-1000" style={{ minHeight: '340px' }}>
         <div
@@ -116,9 +275,9 @@ function ProjectShowcase({ project, onOpenCaseStudy }: { project: Project; onOpe
           className="relative w-full preserve-3d"
           style={{ transformStyle: 'preserve-3d', willChange: 'transform', height: '380px' }}
         >
-          <ProjectVisual projectId={project.id} depth={2} index={2} />
-          <ProjectVisual projectId={project.id} depth={1} index={1} />
-          <ProjectVisual projectId={project.id} depth={0} index={0} />
+          <ProjectVisual item={at(2)} depth={2} index={2} />
+          <ProjectVisual item={at(1)} depth={1} index={1} />
+          <ProjectVisual item={at(0)} depth={0} index={0} onEnded={advance} />
         </div>
       </div>
 

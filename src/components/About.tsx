@@ -1,11 +1,12 @@
 import { ABOUT } from '@/data/portfolio';
-import { useInView } from '@/hooks/useMotion';
+import { useInView, useTilt } from '@/hooks/useMotion';
 import { GraduationCap } from 'lucide-react';
 
-const PORTRAIT_URL = '../../assets/profile  .png  ';
+const PORTRAIT_URL = '/assets/profile.png';
 
 export default function About() {
   const { ref, inView } = useInView<HTMLDivElement>(0.2);
+  const tiltRef = useTilt<HTMLDivElement>(7, 24);
 
   return (
     <section id="about" className="relative py-24 md:py-32">
@@ -16,11 +17,11 @@ export default function About() {
 
         <div ref={ref} className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-16 items-center">
           {/* Portrait */}
-          <div className={`lg:col-span-2 reveal ${inView ? 'in' : ''}`}>
-            <div className="relative group">
+          <div className={`lg:col-span-2 reveal ${inView ? 'in' : ''}`} style={{ perspective: '1200px' }}>
+            <div ref={tiltRef} className="relative group preserve-3d" style={{ willChange: 'transform' }}>
               <div
                 className="relative overflow-hidden rounded-lg"
-                style={{ aspectRatio: '3 / 4' }}
+                style={{ aspectRatio: '3 / 4', boxShadow: '0 40px 70px -25px rgba(0,0,0,0.7)' }}
               >
                 <img
                   src={PORTRAIT_URL}

@@ -3,12 +3,15 @@
 @tailwind utilities;
 
 @layer base {
-  @font-face {
-    font-family: 'Clash Display';
-    src: url('https://fonts.gstatic.com/s/clashdisplay/v2/ClashDisplay-Variable.woff2') format('woff2');
-    font-weight: 200 700;
-    font-display: swap;
-  }
+  /* Clash Display loads via the Fontshare <link> in index.html, and
+     JetBrains Mono / Inter via the Google Fonts <link> there — both real,
+     working font-file URLs. Do NOT redeclare @font-face for either here:
+     a prior attempt pointed 'Clash Display' at fonts.gstatic.com (Google's
+     CDN, which doesn't host it — it's Fontshare-exclusive) and pointed
+     'JetBrains Mono' at a Google Fonts *stylesheet* URL instead of a font
+     file. Both 404/fail silently, and because they're declared here they
+     can still win the cascade over the working <link> versions, which is
+     why the display font was rendering as a generic sans-serif fallback. */
 
   :root {
     --bg: #090909;
@@ -48,10 +51,16 @@
     color: #F7F4ED;
   }
 
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: #090909; }
-  ::-webkit-scrollbar-thumb { background: #2A2520; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #3A332C; }
+  html { scrollbar-width: auto; scrollbar-color: #F59E0B #171512; }
+  ::-webkit-scrollbar { width: 14px; height: 14px; }
+  ::-webkit-scrollbar-track { background: #171512; }
+  ::-webkit-scrollbar-thumb {
+    background: #F59E0B;
+    border-radius: 8px;
+    border: 3px solid #171512;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #FBBF24; background-clip: padding-box; }
 
   h1, h2, h3, h4 {
     font-family: 'Clash Display', 'Inter', sans-serif;
@@ -123,6 +132,11 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: -150% 0; }
+  50% { background-position: 250% 0; }
 }
 
 @layer utilities {

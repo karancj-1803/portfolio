@@ -70,6 +70,53 @@ export function useScrollProgress<T extends HTMLElement = HTMLDivElement>() {
   return { ref, progress };
 }
 
+/**
+ * Pointer-follow tilt: rotates an element toward the cursor with eased,
+ * spring-like interpolation. Disabled for touch/reduced-motion.
+ */
+export function useTilt<T extends HTMLElement = HTMLDivElement>(intensity = 8, lift = 0) {
+  const ref = useRef<T>(null);
+  const reduced = useReducedMotion();
+  const isTouch = useIsTouch();
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduced || isTouch) return;
+
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0, hovering = false;
+
+    const onMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      tx = ((e.clientX - rect.left) / rect.width - 0.5) * intensity;
+      ty = ((e.clientY - rect.top) / rect.height - 0.5) * intensity;
+    };
+    const onEnter = () => { hovering = true; };
+    const onLeave = () => { hovering = false; tx = 0; ty = 0; };
+
+    const loop = () => {
+      cx += (tx - cx) * 0.09;
+      cy += (ty - cy) * 0.09;
+      const z = hovering ? lift : cx === 0 && cy === 0 ? 0 : lift * 0.6;
+      el.style.transform = `perspective(1000px) rotateX(${-cy}deg) rotateY(${cx}deg) translateZ(${z}px)`;
+      raf = requestAnimationFrame(loop);
+    };
+
+    el.addEventListener('mousemove', onMove);
+    el.addEventListener('mouseenter', onEnter);
+    el.addEventListener('mouseleave', onLeave);
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      el.removeEventListener('mousemove', onMove);
+      el.removeEventListener('mouseenter', onEnter);
+      el.removeEventListener('mouseleave', onLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, [intensity, lift, reduced, isTouch]);
+
+  return ref;
+}
+
 export function useActiveSection(ids: string[]) {
   const [active, setActive] = useState(ids[0]);
   useEffect(() => {

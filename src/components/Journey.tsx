@@ -1,6 +1,42 @@
 import { useEffect, useRef } from 'react';
 import { JOURNEY } from '@/data/portfolio';
-import { useScrollProgress, useReducedMotion } from '@/hooks/useMotion';
+import { useScrollProgress, useReducedMotion, useTilt } from '@/hooks/useMotion';
+
+function StageCard({ stage, index }: { stage: (typeof JOURNEY.stages)[number]; index: number }) {
+  const tiltRef = useTilt<HTMLDivElement>(4, 12);
+  return (
+    <div className="relative" style={{ perspective: '900px' }}>
+      {/* Node */}
+      <div className="absolute -left-8 md:-left-16 top-1.5 w-2 h-2 rounded-full bg-graphite-500 border border-ash-700" />
+
+      <div
+        ref={tiltRef}
+        className="preserve-3d rounded-lg -mx-4 px-4 py-2 transition-shadow duration-300"
+        style={{ willChange: 'transform' }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <span className="font-mono text-[10px] tracking-[0.2em] text-ash-600">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <h3 className="font-display text-2xl md:text-4xl text-ivory-50 tracking-tight">
+            {stage.label}
+          </h3>
+        </div>
+
+        <div className="flex flex-wrap gap-2 ml-8 md:ml-0">
+          {stage.tech.map((t) => (
+            <span
+              key={t}
+              className="font-mono text-[10px] tracking-[0.1em] text-ash-500 px-2.5 py-1"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Journey() {
   const { ref, progress } = useScrollProgress<HTMLDivElement>();
@@ -11,14 +47,14 @@ export default function Journey() {
   useEffect(() => {
     if (reduced) {
       if (lineRef.current) lineRef.current.style.height = '100%';
-      if (dotRef.current) dotRef.current.style.bottom = '100%';
+      if (dotRef.current) dotRef.current.style.top = '100%';
       return;
     }
     if (lineRef.current) {
       lineRef.current.style.height = `${progress * 100}%`;
     }
     if (dotRef.current) {
-      dotRef.current.style.bottom = `${progress * 100}%`;
+      dotRef.current.style.top = `${progress * 100}%`;
     }
   }, [progress, reduced]);
 
@@ -52,7 +88,7 @@ export default function Journey() {
             ref={dotRef}
             className="absolute left-3 md:left-7 w-3 h-3 rounded-full -translate-x-1/2 -translate-y-1/2"
             style={{
-              bottom: '0%',
+              top: '0%',
               background: '#FBBF24',
               boxShadow: '0 0 20px rgba(251,191,36,0.8), 0 0 40px rgba(245,158,11,0.4)',
             }}
@@ -61,30 +97,7 @@ export default function Journey() {
           {/* Stages */}
           <div className="space-y-16 md:space-y-24">
             {JOURNEY.stages.map((stage, i) => (
-              <div key={stage.label} className="relative">
-                {/* Node */}
-                <div className="absolute -left-8 md:-left-16 top-1.5 w-2 h-2 rounded-full bg-graphite-500 border border-ash-700" />
-
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="font-mono text-[10px] tracking-[0.2em] text-ash-600">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <h3 className="font-display text-2xl md:text-4xl text-ivory-50 tracking-tight">
-                    {stage.label}
-                  </h3>
-                </div>
-
-                <div className="flex flex-wrap gap-2 ml-8 md:ml-0">
-                  {stage.tech.map((t) => (
-                    <span
-                      key={t}
-                      className="font-mono text-[10px] tracking-[0.1em] text-ash-500 px-2.5 py-1"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <StageCard key={stage.label} stage={stage} index={i} />
             ))}
           </div>
         </div>
